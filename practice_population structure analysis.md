@@ -1,4 +1,4 @@
-从一个大群中提取子群，并进行群体结构分析：PCA analysis、admixture analysis、phylogenetic analysis
+从一个大群中提取子群，之后进行 SNP 一般性质控和连锁不平衡质控，最后进行群体结构分析：PCA analysis、admixture analysis、phylogenetic analysis
 
 ### 1. plink 软件提取子集
 ```
@@ -30,9 +30,46 @@ plink --file subpopulation1   # 输入 subpopulation1.ped 和 subpopulation1.map
       --out subpopulation1_qc # 过滤后输出文件前缀 subpopulation1_qc
       --recode                # 输出文件格式为 .ped 和 .map
       --sheep                 # 物种
-
-
+# 输出文件为 subpopulation1_qc.ped 和 subpopulation1_qc.map 文件
 ```
+
+
+### 3. plink 软件基于连锁不平衡进一步质控
+计算 LD
+```
+plink --file subpopulation1_qc       # 输入 subpopulation1_qc.ped 和 subpopulation1_qc.map 文件
+      --indep 50 5 2                 # 删除在群体中存在高LD的变异标记，减少计算复杂度。
+                                     # 50：在每个 LD 窗口内考察 50 个变异标记；
+                                     # 5：该窗口内的变异标记之间最大距离为 5 Kb；
+                                     # 2：当两个标记之间的相关性大于 0.2（通常是 r²）时，删除其中一个标记
+      --out subpopulation1_qc_ld     # 过滤后输出文件前缀 subpopulation1_qc_ld
+      --recode                      
+      --noweb                        # 不进行 Web 更新检查
+# 输出文件为 subpopulation1_qc_ld.ped 和 subpopulation1_qc_ld.map 文件；subpopulation1_qc_ld.prune.in 和 subpopulation1_qc_ld.prune.out 文件
+```
+提取目标 SNP 位点
+```
+plink --file subpopulation1_qc                 # 输入文件前缀
+      --extract subpopulation1_qc_ld.prune.in  # 需要保留的 SNP ID
+      --out subpopulation1_qc_prune            # subpopulation1_qc_prune.ped 和 subpopulation1_qc_prune.map 文件
+      --recode
+
+
+# subpopulation1_qc_ld.prune.in 文件内容如下
+1:94
+1:95
+...
+26:44046956
+26:44046973
+26:44047006
+26:44047044
+```
+**上方两行代码感觉非常相似，不确定是不是可以删除某一步骤**
+
+### 4. PCA 分析
+
+
+
 
 
 
