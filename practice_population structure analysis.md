@@ -35,6 +35,7 @@ plink --file subpopulation1   # 输入 subpopulation1.ped 和 subpopulation1.map
 
 
 ### 3. plink 软件基于连锁不平衡进一步质控
+**先计算LD，之后提取 LD 质控后保留位点**
 计算 LD
 ```
 plink --file subpopulation1_qc       # 输入 subpopulation1_qc.ped 和 subpopulation1_qc.map 文件
@@ -91,19 +92,19 @@ plink --file subpopulation1_qc_prune     # 输入文件 subpopulation1_qc_prune.
 ```
 
 ### 5. MEGA 系统发生树
-plink 计算遗传距离
+**plink 计算遗传距离，perl 脚本将遗传距离矩阵数据文件转换为 .mega 格式**
 ```
-plink1 --file subpopulation1_qc_prune   # 输入文件 subpopulation1_qc_prune.ped 和 subpopulation1_qc_prune.map
-       --cluster                        # 进行基于遗传距离的样本聚类
-       --distance-matrix                # 计算每对样本之间的遗传距离，并输出距离矩阵
-       --out subpopulation1             # 输出文件前缀
-       --sheep  --noweb
+plink --file subpopulation1_qc_prune   # 输入文件 subpopulation1_qc_prune.ped 和 subpopulation1_qc_prune.map
+      --cluster                        # 进行基于遗传距离的样本聚类
+      --distance-matrix                # 计算每对样本之间的遗传距离，并输出距离矩阵
+      --out subpopulation1             # 输出文件前缀
+      --sheep  --noweb
 # 输出 subpopulation1.cluster 和 subpopulation1.mdist 文件
 
 # subpopulation1.cluster：包含群体结构聚类的结果
 # subpopulation1.mdist：包含样本两两之间的遗传距离矩阵。
 ```
-perl 脚本将遗传距离矩阵数据文件转换为 .mega 格式
+格式转换
 ```
 perl plink.distance.matrix.to.mega.pl            # 
      subpopulation1_prunename.txt                # 所包含的样本名
@@ -112,8 +113,7 @@ perl plink.distance.matrix.to.mega.pl            #
      subpopulation1                              # 输出文件前缀
 # 输出文件 subpopulation1.meg 文件
 
-
-
+# 样本名文件 subpopulation1_prunename.txt 格式如下 
 4Jm200	4Jm200
 4Jm201	4Jm201
 4Jm203	4Jm203
@@ -126,6 +126,31 @@ perl plink.distance.matrix.to.mega.pl            #
 4JM1703	4JM1703
 4JM1708	4JM1708
 ```
+
+### 6. Structure群体结构分析
+**遍历K值的不同选择（从2到6），执行Admixture分析，并记录结果**
+这里需要用到 subpopulation1_qc_prune.bed 文件，即将 ped map 文件转为 bed bim fam 文件
+```
+for K in 2 3 4 5 6; do 
+    # 对于每个K值，执行 admixture 命令，计算交叉验证误差（CV）并保存结果
+    admixture --cv 344mergeprune.bed $K | tee log_admix_${K}.out;
+done
+
+# 通过grep命令提取所有log文件中的交叉验证CV值，并将其输出到 K.value 文件中
+grep -h CV log*.out > K.value
+```
+不同 K 值会分别输出两个 .K.P 和 .K.Q 文件  
+![image](https://github.com/user-attachments/assets/69231845-a793-4d21-a8c0-b2d12d7c6d67)  
+**.Q 文件**为 N_sample * N_kvalue 矩阵，每行代表一个样本，每列代表一个群体（K 个群体）。因此，第 i 行第 j 列的数值表示第 i 个样本在第 j 个群体中的概率。  
+![image](https://github.com/user-attachments/assets/76126ebe-89ef-40a5-945c-6880ac07aa10)  
+**.P 文件**为 N_snp numner * N_kvalue 矩阵，代表每个 SNP 位点在群体 K 中的基因频率  
+![image](https://github.com/user-attachments/assets/114c34a4-e3c3-42de-94ea-3aa00c00dcae)
+
+
+
+
+
+
 
 
 
