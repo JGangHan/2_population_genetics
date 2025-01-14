@@ -61,32 +61,54 @@ sed -i '1d' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/a
 awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"($5/$6)}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/a > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case_pi-ratio
 ```
 
+对 case group 和 control 的 VCF 文件进行等位基因计数
+vcftools --vcf /PATH/TO/trait_case.recode.vcf --counts --out /PATH/TO/trait_count_case
+vcftools --vcf /PATH/TO/trait_control.recode.vcf --counts --out /PATH/TO/trait_count_control
+# 输出 trait_count_case.frq.count 和 trait_count_control.frq.count 文件，内容如下
+CHROM	POS	N_ALLELES	N_CHR	{ALLELE:COUNT}
+1	87	2	366	A:193	C:173
+1	88	2	366	A:191	G:175
+1	94	2	366	T:190	C:176
+1	95	2	366	G:324	A:42
+1	137	2	366	T:219	C:147
+1	138	2	366	G:303	A:63
+1	191	2	366	C:298	T:68
 
 
+# case group 数据处理
+# 提取等位基因计数文件 .frq.count 的第1，2，5，6列
+awk '{print $1"\t"$2"\t"$5"\t"$6}' /PATH/TO/trait_count_case.frq.count > /PATH/TO/trait_count_case.count
+# 删除 ATCG 字符
+sed -i 's/A://g' /PATH/TO/trait_count_case.count
+sed -i 's/T://g' /PATH/TO/trait_count_case.count
+sed -i 's/C://g' /PATH/TO/trait_count_case.count
+sed -i 's/G://g' /PATH/TO/trait_count_case.count
 
+# trait_count_case.frq.count（6列）转为 trait_count_case.count（4列）
+CHROM	POS	{ALLELE:COUNT}	
+1	87	193	173
+1	88	191	175
+1	94	190	176
+1	95	324	42
+1	137	219	147
+1	138	303	63
+1	191	298	68
+1	198	291	75
+1	238	322	44
 
+# 针对第3，4列数值大小逐行进行排序，但是否会丢失等位基因信息？？？
+awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}'/PATH/TO/trait_count_case.count > /PATH/TO/trait_count_case.count.input
+# 计算 Zhp
+perl calz.pl /PATH/TO/trait_count_case.count.input 100000 15000
 
-
-
-vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.recode.vcf --counts --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case_counts
-vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.recode.vcf --counts --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control_counts
-awk '{print $1"\t"$2"\t"$5"\t"$6}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case_counts.frq.count > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count
-awk '{print $1"\t"$2"\t"$5"\t"$6}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control_counts.frq.count  > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count
-sed -i 's/A://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count
-sed -i 's/T://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count
- sed -i 's/C://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count
-sed -i 's/G://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count
-sed -i 's/A://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count
-sed -i 's/T://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count
-sed -i 's/C://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count
-sed -i 's/G://g' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count
-awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count.input
-awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count.input
-perl /data/liangbm/newsheep/liangbm/keti2/zyhtzhp/calz.pl /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/case.count.input 100000 15000
-perl /data/liangbm/newsheep/liangbm/keti2/zyhtzhp/calz.pl /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/control.count.input 100000 15000
-
-
-
+# control group 数据处理
+awk '{print $1"\t"$2"\t"$5"\t"$6}' /PATH/TO/control_counts.frq.count > /PATH/TO/trait_count_control.count
+sed -i 's/A://g' /PATH/TO/trait_count_control.count
+sed -i 's/T://g' /PATH/TO/trait_count_control.count
+sed -i 's/C://g' /PATH/TO/trait_count_control.count
+sed -i 's/G://g' /PATH/TO/trait_count_control.count
+awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' control.count > control.count.input
+perl calz.pl control.count.input 100000 15000
 
 
 
