@@ -107,10 +107,8 @@ sed -i 's/A://g' /PATH/TO/trait_count_control.count
 sed -i 's/T://g' /PATH/TO/trait_count_control.count
 sed -i 's/C://g' /PATH/TO/trait_count_control.count
 sed -i 's/G://g' /PATH/TO/trait_count_control.count
-awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' control.count > control.count.input
-perl calz.pl control.count.input 100000 15000
-
-
+awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' /PATH/TO/trait_count_control.count > /PATH/TO/trait_count_control.count.input
+perl calz.pl /PATH/TO/trait_count_control.count.input 100000 15000
 
 
 
