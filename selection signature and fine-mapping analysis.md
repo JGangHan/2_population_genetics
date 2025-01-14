@@ -1,6 +1,6 @@
 
 ## 1. 群体 vcf 文件和质控
-准备经质控后的 population.vcf 文件。**具体哪些步骤？？质控到哪些程度？？**
+准备经质控后的 population_qc.vcf 文件。**具体哪些步骤？？质控到哪些程度？？**
 
 
 ## 2. 选择信号分析
@@ -11,6 +11,20 @@
 vcftools --vcf /PATH/TO/population_qc.vcf --keep  /PATH/TO/id_case.txt --recode --out /PATH/TO/trait_case        # 输出 trait_case.recode.vcf 文件
 vcftools --vcf /PATH/TO/population_qc.vcf --keep  /PATH/TO/id_control.txt --recode --out /PATH/TO/trait_control  # 输出 trait_control.recode.vcf 文件
 ```
+id_case.txt 文件内容如下：
+```
+4Jm200	4Jm200
+4Jm201	4Jm201
+4Jm203	4Jm203
+4Jm401	4Jm401
+4Jm405	4Jm405
+4JM500	4JM500
+4JM503	4JM503
+4Jm801	4Jm801
+4JM1701	4JM1701
+4JM1703	4JM1703
+```
+
 ### 2.2 计算多态性指数（π）和 π ratio
 对case control group 分别计算 pi value
 ```
@@ -125,6 +139,50 @@ sed -i 's/G://g' /PATH/TO/trait_count_control.count
 awk -F '\t' '{if($3>=$4){print $1"\t"$2"\t"$3"\t"$4} else {print $1"\t"$2"\t"$4"\t"$3}}' /PATH/TO/trait_count_control.count > /PATH/TO/trait_count_control.count.input
 perl calz.pl /PATH/TO/trait_count_control.count.input 100000 15000
 ```
+
+
+
+
+## 3. fine mapping
+**对某一目标基因上下游区域发生的选择信号进行精细定位**
+# 以 PDGFD 基因为例
+vcftools --vcf /PATH/TO/population_qc.vcf --chr 15 --from-bp 3785000 --to-bp 3985000 --recode --out /PATH/TO/trait_pdgfd_200kb     
+# 输出 trait_pdgfd_200kb.recode.vcf 文件
+
+
+vcftools --vcf /PATH/TO/trait_pdgfd_200kb.recode.vcf --weir-fst-pop id_case.txt --weir-fst-pop id_control.txt --out /PATH/TO/trait_pdgfd_fst  
+# 输出 trait_pdgfd_fst.weir.fst 文件
+
+
+vcftools --vcf /PATH/TO/population_qc.vcf --keep  /PATH/TO/id_case.txt --recode --out /PATH/TO/trait_case        # 输出 trait_case.recode.vcf 文件
+vcftools --vcf /PATH/TO/population_qc.vcf --keep  /PATH/TO/id_control.txt --recode --out /PATH/TO/trait_control  # 输出 trait_control.recode.vcf 文件
+
+
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/PDGFD_200KB.recode.vcf --weir-fst-pop /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/case1.txt --weir-fst-pop /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/control1.txt --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1_vs_control1
+
+
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/PDGFD_200KB.recode.vcf --keep  /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/case1.txt --recode --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/PDGFD_200KB.recode.vcf --keep  /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/control1.txt --recode --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.recode.vcf --window-pi 20000 --window-pi-step 20000 --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1.recode.vcf --window-pi 20000 --window-pi-step 20000 --out /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1
+awk -F '\t' 'NR==FNR{a[$1"\t"$2]}NR>FNR{if($1"\t"$2 in a)print}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.windowed.pi /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1.windowed.pi > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/1
+awk -F '\t' 'NR==FNR{a[$1"\t"$2]}NR>FNR{if($1"\t"$2 in a)print}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/1 /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.windowed.pi > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/2
+awk '{print $5}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/2 > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/3
+paste -d "\t" /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/1 /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/3 > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/a
+sed -i '1d' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/a
+awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"($5/$6)}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/a > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case_pi-ratio
+
+
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.recode.vcf --TajimaD 20000 --out  /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1
+vcftools --vcf /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1.recode.vcf --TajimaD 20000 --out  /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1
+awk -F '\t' 'NR==FNR{a[$1"\t"$2]}NR>FNR{if($1"\t"$2 in a)print}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.Tajima.D /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/control1.Tajima.D > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D1
+awk -F '\t' 'NR==FNR{a[$1"\t"$2]}NR>FNR{if($1"\t"$2 in a)print}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D1 /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/case1.Tajima.D > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D2
+awk '{print $4}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D2 > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D3
+paste -d "\t" /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D1 /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/D3 > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/Da
+sed -i '1d' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/Da
+awk '{print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"($4-$5)}' /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/Da > /data/liangbm/newsheep/liangbm/ancient/Analysis/390new/344/fst/PDGFD/TD
+
+
 
 
 
