@@ -23,23 +23,9 @@ vcftools 和bcftools 区别
 
 
 
-# 对 chr9
-gatk VariantFiltration \
-  -V "${VCF_DIR}/chr9.recode_snp.vcf.gz" \
-  -O "${OUTPUT_DIR}/chr9.filtered.vcf.gz" \
-  --filter-expression "QD < 2.0 || MQ < 40.0 || FS > 60.0 || SOR > 3.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
-  --filter-name "Filter"
 
-# 对 chr15
-gatk --java-options "-Xmx4G -Djava.io.tmpdir=./" VariantFiltration \
-  -V "${VCF_DIR}/chr15.recode_snp.vcf.gz" \
-  -O "${OUTPUT_DIR}/chr15.filtered.vcf.gz" \
-  --filter-expression "QD < 2.0 || MQ < 40.0 || FS > 60.0 || SOR > 3.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
-  --filter-name "Filter"
 
 
-# 解压原始 gzip 压缩的 VCF 文件
-gunzip -c chr15.filtered.vcf.gz > chr15.vcf
 
 
 
@@ -51,207 +37,9 @@ gunzip -c chr15.filtered.vcf.gz > chr15.vcf
 
 
 
-# 加载 vcftools
-module load /workspace/public/x86/software/modules/tool/vcftools-0.1.16
 
-# 设置路径
-VCF_DIR="/workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter"
-OUTPUT_DIR="/workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter/vcftools-filter"
-mkdir -p $OUTPUT_DIR
 
-# 只处理 chr9 和 chr15
-for CHROM in 9 15; do
-  (
-    echo "Processing chr${CHROM}..."
 
-    vcftools --gzvcf "${VCF_DIR}/chr${CHROM}.filtered.vcf.gz" \
-      --maf 0.05 --min-alleles 2 --max-alleles 2 --max-missing 0.9 --min-meanDP 3 \
-      --recode --recode-INFO-all --out "${OUTPUT_DIR}/chr${CHROM}.filtered.snp"
-
-    # 删除特定 contig 信息
-    grep -v "##contig=<ID=LWLT*" "${OUTPUT_DIR}/chr${CHROM}.filtered.snp.recode.vcf" > "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf"
-
-    # 修复缺失的基因型格式
-    perl -pe 's/\s\.:/\t.\/.:/g' "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf" > "${OUTPUT_DIR}/chr${CHROM}.snp.fix.recode.vcf"
-
-    # 删除中间文件
-    rm "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf"
-    rm "${OUTPUT_DIR}/chr${CHROM}.filtered.snp.recode.vcf"
-
-    echo "chr${CHROM} done."
-  ) &
-done
-wait
-
-
-
-
-
-
-for CHROM in {1..26}; do
-  (
-    vcftools --gzvcf "${VCF_DIR}/chr${CHROM}.filtered.vcf.gz" \
-      --maf 0.05 --min-alleles 2 --max-alleles 2 --max-missing 0.9 --min-meanDP 3 \
-      --recode --recode-INFO-all --out "${OUTPUT_DIR}/chr${CHROM}.filtered.snp"
-
-    # 删除特定的 contig 信息
-    grep -v "##contig=<ID=LWLT*" "${OUTPUT_DIR}/chr${CHROM}.filtered.snp.recode.vcf" > "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf"
-
-    # 修复缺失的基因型格式
-    cat "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf" | perl -pe "s/\s\.:/\t.\/.:/g" > "${OUTPUT_DIR}/chr${CHROM}.snp.fix.recode.vcf"
-
-    # 删除中间文件
-    rm "${OUTPUT_DIR}/chr${CHROM}.rm.snp.recode.vcf"
-    rm "${OUTPUT_DIR}/chr${CHROM}.filtered.snp.recode.vcf" &
-  ) &
-done
-wait
-
-
-
-
-
-
-
-
-
-python merge.py list.txt merge.vcf.gz
-#去除头信息
-bcftools view -H /workspace/public/zongzhan/SLresult/sheep/jointcall/split/SNP/GATK-filter/vcftools-filter/merge.vcf.gz > data_content.txt
-#合并新头部和数据部分：
-cat /workspace/public/zongzhan/SLresult/sheep/jointcall/head_no_LWLT.txt data_content.txt | bgzip > 98merge.vcf.gz
-#为合并后的 VCF 文件生成索引：
-bcftools index 98merge.vcf.gz
-
-
-
-#!/bin/bash
-
-# 输出文件路径
-OUT_VCF="/workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_snp.vcf"
-
-# 获取 header
-grep "^#" /workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter/vcftools-filter/chr1.snp.fix.recode.vcf > "$OUT_VCF"
-
-# 合并各染色体 body
-for CHR in {1..26}; do
-  FILE="/workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter/vcftools-filter/chr${CHR}.snp.fix.recode.vcf"
-  echo "Merging: $FILE"
-  grep -v "^#" "$FILE" >> "$OUT_VCF"
-done
-grep "^#CHROM" "$OUT_VCF"
-bcftools view -H "$OUT_VCF" | head
-bcftools view -h "$OUT_VCF" | head
-
-
-bcftools view -h ./qmrb_50sheep_snp.vcf | head
-
-
-bcftools view -h /workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter/vcftools-filter/chr26.snp.fix.recode.vcf | head
-
-# 样本数量和名称
-bcftools query -l /workspace/public/zongzhan/448Tibetan_sheep/snp448.vcf
-bcftools query -l /workspace/public/zongzhan/448Tibetan_sheep/snp448.vcf | wc -l
-
-bcftools query -l /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_snp.vcf
-bcftools query -l /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_snp.vcf | wc -l
-
-
-# 染色体名称
-
-# 统计数据部分染色体名称
-cut -f1 /workspace/public/zongzhan/448Tibetan_sheep/snp448.vcf | grep -v "^#" | sort | uniq
-cut -f1 /workspace/public/zongzhan/qmrb_sheep/jointcall/split/SNP/GATK-filter/vcftools-filter/chr26.snp.fix.recode.vcf | grep -v "^#" | sort | uniq
-cut -f1 /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_snp.vcf | grep -v "^#" | sort | uniq
-
-# 统计头部信息中染色体名称
-grep "^##contig=" /workspace/public/zongzhan/448Tibetan_sheep/snp448.vcf
-grep "^##contig=" ./qmrb_50sheep_snp.vcf
-
-
-
-
-# 染色体重命名
-input_file="/workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_snp.vcf"
-output_file="/workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep.vcf"
-
-# CM001582.2    chr1
-# CM001607.2    chr26
-
-# 使用sed命令替换染色体名称
-sed -e 's/CM001582.2/1/g' \
-    -e 's/CM001583.2/2/g' \
-    -e 's/CM001584.2/3/g' \
-    -e 's/CM001585.2/4/g' \
-    -e 's/CM001586.2/5/g' \
-    -e 's/CM001587.2/6/g' \
-    -e 's/CM001588.2/7/g' \
-    -e 's/CM001589.2/8/g' \
-    -e 's/CM001590.2/9/g' \
-    -e 's/CM001591.2/10/g' \
-    -e 's/CM001592.2/11/g' \
-    -e 's/CM001593.2/12/g' \
-    -e 's/CM001594.2/13/g' \
-    -e 's/CM001595.2/14/g' \
-    -e 's/CM001596.2/15/g' \
-    -e 's/CM001597.2/16/g' \
-    -e 's/CM001598.2/17/g' \
-    -e 's/CM001599.2/18/g' \
-    -e 's/CM001600.2/19/g' \
-    -e 's/CM001601.2/20/g' \
-    -e 's/CM001602.2/21/g' \
-    -e 's/CM001603.2/22/g' \
-    -e 's/CM001604.2/23/g' \
-    -e 's/CM001605.2/24/g' \
-    -e 's/CM001606.2/25/g' \
-    -e 's/CM001607.2/26/g' \
-    $input_file > $output_file
-	
-echo "染色体名称替换完成，并保存到 $output_file"
-
-
-
-echo "替换前的染色体列表："
-cut -f1 "$input_file" | grep -v "^#" | sort | uniq
-
-echo "替换后的染色体列表："
-cut -f1 "$output_file" | grep -v "^#" | sort | uniq
-
-# 头部信息
-grep "^##contig=" ./qmrb_50sheep.vcf | head
-
-
-
-# qmrb_50sheep.vcf.gz
-
-#!/bin/bash
-input_vcf="qmrb_50sheep.vcf.gz"
-output_vcf="qmrb_50sheep_chr1to26.vcf.gz"
-
-zcat "$input_vcf" | \
-awk '
-BEGIN {
-    for (i=1; i<=26; i++) keep[i]=1
-}
-{
-    if ($0 ~ /^##contig=<ID=/) {
-        match($0, /ID=([^,>]+)/, arr)
-        if (arr[1] in keep)
-            print
-    } else if ($0 ~ /^##/) {
-        print
-    } else if ($0 ~ /^#CHROM/) {
-        print
-        in_data=1
-    } else if (in_data) {
-        print
-    }
-}' | bgzip -c > "$output_vcf"
-
-tabix -p vcf "$output_vcf"
-
-bcftools view -h ./qmrb_50sheep_chr1to26.vcf.gz | head
-zgrep "^##contig=" ./qmrb_50sheep_chr1to26.vcf.gz | head
 
 
 
@@ -273,8 +61,6 @@ tabix -p vcf /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefi
 bcftools query -l /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz
 
   
-
-
 
 
 # snp448.vcf 中选择指定样本
