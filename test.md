@@ -82,9 +82,15 @@ tabix -p vcf /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz
 
 
 
+# 检查样本名是否有重叠
+bcftools query -l qmrb_50sheep.sorted.vcf.gz > qm_samples.txt
+bcftools query -l snp448.sorted.vcf.gz > chip_samples_renamed.txt
+comm -12 <(sort qm_samples.txt) <(sort chip_samples_renamed.txt)  # 若输出为空，则样本无重名
 
 
-合并 /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz 和 /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz 准备步骤
+
+
+
 bcftools view -h /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz | grep "^##contig"
 bcftools view -h /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz  | grep "^##contig"
 
@@ -108,10 +114,7 @@ tabix -p vcf snp448.sorted.vcf.gz
 bcftools sort /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz -Oz -o qmrb_50sheep.sorted.vcf.gz
 tabix -p vcf qmrb_50sheep.sorted.vcf.gz
 
-# 检查样本名是否有重叠
-bcftools query -l qmrb_50sheep.sorted.vcf.gz > qm_samples.txt
-bcftools query -l snp448.sorted.vcf.gz > chip_samples_renamed.txt
-comm -12 <(sort qm_samples.txt) <(sort chip_samples_renamed.txt)  # 若输出为空，则样本无重名
+
 
 # 正式合并
 bcftools merge -m all -Oz -o merged.vcf.gz snp448.sorted.vcf.gz qmrb_50sheep.sorted.vcf.gz 
