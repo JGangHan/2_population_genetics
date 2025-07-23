@@ -69,36 +69,38 @@ bgzip -c /workspace/public/zongzhan/qmrb_sheep/snp448.vcf > /workspace/public/zo
 tabix -p vcf /workspace/public/zongzhan/qmrb_sheep/snp448.vcf.gz
 # 根据前缀QL、GG、SG、AW、HB、DM、GB, 在 /workspace/public/zongzhan/448Tibetan_sheep/snp448.vcf.gz 文件中提取包含上述前缀的样本，并生成新的 .vcf.gz 文件
 
+bcftools query -l /workspace/public/zongzhan/qmrb_sheep/snp448.vcf.gz > 1.txt
+
+#SG 变为 SG0 
 bcftools query -l /workspace/public/zongzhan/qmrb_sheep/snp448.vcf.gz \
-  | grep -E "^(QL|GG|SG|AW|HB|DM|GB)" > selected_samples.txt
+  | grep -E "^(QL|GG|SG0|AW|HB|DM|GB)" > selected_samples.txt
 
 bcftools view -S selected_samples.txt \
   -Oz -o /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz \
   /workspace/public/zongzhan/qmrb_sheep/snp448.vcf.gz
 
-bcftools query -l /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz | wc -l
+wc -l selected_samples.txt  # 148
+bcftools query -l /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz | wc -l # 148
 tabix -p vcf /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz
 
 
 
-
+###合并前准备工作
 # 检查样本名是否有重叠
 bcftools query -l qmrb_50sheep.sorted.vcf.gz > qm_samples.txt
 bcftools query -l snp448.sorted.vcf.gz > chip_samples_renamed.txt
 comm -12 <(sort qm_samples.txt) <(sort chip_samples_renamed.txt)  # 若输出为空，则样本无重名
 
-
-
-
-
+# 查看信息部分染色体长度是否一致
 bcftools view -h /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz | grep "^##contig"
 bcftools view -h /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz  | grep "^##contig"
 
+# 查看数据部分染色体名称是否一致
 bcftools view -H /workspace/public/zongzhan/qmrb_sheep/snp448_selected.vcf.gz | cut -f1 | sort | uniq
 bcftools view -H /workspace/public/zongzhan/qmrb_sheep/qmrb_50sheep_chr1to26.QMprefix.vcf.gz  | cut -f1 | sort | uniq
 
 
-
+# 排序
 # 按照标准顺序排列 SNP 位点，减少合并过程产生报错的可能
 
 # 默认是按照染色体名称（CHROM 字段）和位点位置（POS 字段）进行双重排序
@@ -126,6 +128,7 @@ tabix -p vcf merged.vcf.gz
 
 
 
+######## 另一种合并方式，基于某一个 vcf 文件中的位点位置信息，用 plink 软件提取另一个 vcf 文件中的对应位点相关数据
 snp448.sorted.vcf.gz qmrb_50sheep.sorted.vcf.gz 
 
 用vcftools根据list文件提取指定vcf文件，代码
@@ -135,12 +138,13 @@ vcftools --gzvcf /data/liyf/00jointcall/data/1052.vcf.gz --keep 30.txt --recode 
 
 
 # 提取 source 群体位点位置
+# 参考群体 snp 数量
 bcftools query -f '%CHROM\t%POS\n' snp448.sorted.vcf.gz > snp448_position.txt
-# snp 数量
 wc -l snp448_position.txt # 482709
 
-bcftools query -f '%CHROM\t%POS\n' qmrb_50sheep.sorted.vcf.gz > 1.txt
-wc -l 1.txt # 20202525 
+# 目标群体 snp 数量
+bcftools query -f '%CHROM\t%POS\n' qmrb_50sheep.sorted.vcf.gz | wc -l   # 20202525 
+
 
 # 移除头部的无用信息
 # grep -v "^##" 3goat > new_positions_file
@@ -149,8 +153,9 @@ wc -l 1.txt # 20202525
 # gunzip All.raw.snp.vcf.gz
 # 根据这个位置信息提取待鉴定资源的位点
 
-gunzip -c qmrb_50sheep.sorted.vcf.gz > qmrb_50sheep.sorted.vcf
 
+# 先解压 再提取
+gunzip -c qmrb_50sheep.sorted.vcf.gz > qmrb_50sheep.sorted.vcf
 
 # 提取 test snp 子集
 # 404796
@@ -164,24 +169,23 @@ vcftools --vcf snp448.sorted.vcf --positions qmrb_position.txt --recode --out sn
 
 # 404796
 bcftools query -f '%CHROM\t%POS\n' snp448_common.recode.vcf | wc -l
+bcftools query -l snp448_common.recode.vcf > 1.txt
 
 
 # 转为 ped map 格式，通过 plink 合并
-vcftools --vcf qmrb_50sheep_common.recode.vcf --plink --out test
-vcftools --vcf snp448_common.recode.vcf --plink --out source
-
-
-module load /workspace/public/x86/software/modules/tool/plink-1.90 
-plink --chr-set 26 --file test --merge source.ped source.map --recode --out merged_population
+module load /workspace/public/x86/software/modules/tool/plink-1.90
+# 转为 ped map 格式
+vcftools --vcf qmrb_50sheep_common.recode.vcf --plink --out test  # 50 个体；404796 snp
+vcftools --vcf snp448_common.recode.vcf --plink --out ref   # 148 个体；404796 snp
+# 合并
+plink --chr-set 26 --file test --merge ref.ped ref.map --recode --out merged_population
 # 输出 merged_population.ped map bed bim fam 等五种文件
 # 查看个体和SNP数量
-plink --bfile merged_population --freq --out summary
+plink --bfile merged_population --freq --out summary  # 198 个体，404796 snps
 
 
 # 
 之后将得到的merged_population文件使用begale软件进行填充
-
-
 java -jar /opt/software/beagle.28Sep18.793.jar gt=all_3goat.vcf out=./allmerge_bg nthreads=8
 将重复的位点信息输入到merge-remove.dupvar文件中
 plink --chr-set 29 --file all_3goat --list-duplicate-vars ids-only suppress-first -out merge-remove
@@ -194,15 +198,16 @@ plink --chr-set 29 --file all_3goat_unique --recode-vcf --out all_3goat_unique
 
 # Step 3: 将合并后的PED文件转换成VCF格式（供 Beagle 使用）
 plink --chr-set 26 --file merged_population --recode vcf --out merged_population
-
 # Step 4: 使用 Beagle 进行缺失基因型填充
-java -Xmx8g -jar /workspace/public/x86/software/tool/beagle-5.4/beagle.01Mar24.d36.jar gt=merged_population.vcf out=merged_population_bg nthreads=8
+java -Xmx16g -jar /workspace/public/x86/software/tool/beagle-5.4/beagle.01Mar24.d36.jar gt=merged_population.vcf out=merged_population_bg nthreads=16
+bcftools query -f '%CHROM\t%POS\n' merged_population_bg.vcf.gz | wc -l
 
 # Step 5: 检查填充后的 VCF 文件是否存在重复变异位点（可选但推荐）
 plink --chr-set 26 --vcf merged_population_bg.vcf.gz \
   --list-duplicate-vars ids-only suppress-first \
   --double-id \
   --out merged_population_remove
+bcftools query -f '%CHROM\t%POS\n' merged_population_remove.vcf.gz | wc -l
 
 
 # Step 6: 去除重复 SNP 位点，并输出为 vcf 格式
@@ -212,16 +217,16 @@ plink --chr-set 26 \
       --double-id \
       --recode vcf \
       --out merged_population_unique
-
+bcftools query -f '%CHROM\t%POS\n' merged_population_unique.vcf | wc -l
 
 
 
 
 # 数据修剪 prune
 # 转为 bed bim fam 格式，通常要去掉一对性染色体
-
 plink --vcf merged_population_unique.vcf --double-id --make-bed --out merged_population_unique --chr-set 26
 
+# 为什么要 prune
 plink --bfile merged_population_unique --double-id --indep-pairwise 50 10 0.2 --out pruned --chr-set 26
 
 --bfile 表示使用 .bed + .bim + .fam 三个文件作为输入；
@@ -245,7 +250,7 @@ plink --bfile merged_population --freq --out summary
 
 
 
-
+#gcta 和 gatk 傻傻分不清楚
 gcta64 --bfile merged_population_pruned --make-grm --autosome-num 26 --out grm_matrix
 # 输出文件 grm_matrix.grm.bin grm_matrix.grm.N.bin grm_matrix.grm.id
 gcta64 --grm grm_matrix --pca 3 --out pca_matrix
