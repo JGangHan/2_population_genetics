@@ -80,7 +80,7 @@ bcftools view -H ./jointcall/split/chr2.recode.vcf.gz | head
 
 
 ## 2. 单个染色体 vcf.gz 文件 → 按变异类型拆分
-**使用 GATK 拆分SNP 和 Indel 两种**
+**使用 gatk SelectVariants 拆分SNP 和 Indel 两种变异类型**
 ```
 # 1. 加载软件
 module load /workspace/public/x86/software/modules/tool/GATK-4.0.0.0
