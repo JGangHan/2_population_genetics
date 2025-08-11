@@ -1,6 +1,4 @@
-预处理流程：
-- vcftools 拆分染色体
-- gatk SelectVariants 拆分 SNP 和 Indel
+- **经 vcftools 拆分染色体，与 gatk SelectVariants 拆分 SNP 和 Indel 后的 vcf 文件**
 
 ## 1. SNP 质控信息
 **（1）常见 SNP 质控软件、参数和阈值**
@@ -128,12 +126,11 @@ done
 wait
 ```
 
-### 7. 遇见问题
-#### 7.1 gatk 过滤后文件损毁
-1. vcftools 对 chr9 和 chr15.filtered.vcf.gz 进行质控过程命令卡住（注意不是报错或停止）  
-若 vcf.gz 文件损毁，通过 gunzip -c 解压会直接报错
-3. 经逐项检查，发现是 gatk 过滤步骤后，chr9 和 chr15 染色体 vcf 文件损毁（或不完善），用 gatk 重新过滤即可
-#### 7.2 
+## 4. 可能遇见的报错
+**gatk 过滤后文件损毁**
+- 内容：vcftools 对 chr9 和 chr15.filtered.vcf.gz 进行质控过程命令卡住（注意不是报错或停止，染色体随机）
+- **检查方式：gunzip -c 解压检查，若 vcf.gz 文件损毁，则直接报错**
+- 结果：gatk snp 质检步骤后，chr9 和 chr15 染色体 vcf 文件损毁（或不完善），用 gatk 重新过滤即可
 
 
 
