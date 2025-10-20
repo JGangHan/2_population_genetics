@@ -61,8 +61,7 @@ do
     OLD_CHR="CM001${i}.2"
     NEW_NUM=$((i - 581))  # 将染色体编号转换为1到26的范围
     (
-        vcftools --gzvcf ${INPUT_VCF} --chr ${OLD_CHR} --recode --recode-INFO-all --out ${OUTPUT_DIR}/chr${NEW_NUM} &&
-        bgzip -f ${OUTPUT_DIR}/chr${NEW_NUM}.recode.vcf &&
+        bcftools view -r ${OLD_CHR} ${INPUT_VCF} -O z -o ${OUTPUT_DIR}/chr${NEW_NUM}.recode.vcf.gz &&
         tabix -p vcf ${OUTPUT_DIR}/chr${NEW_NUM}.recode.vcf.gz
     ) & 
 done
